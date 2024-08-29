@@ -1,0 +1,105 @@
+import os
+import processing
+from qgis.PyQt import QtGui
+import time
+import shutil
+
+adresar = "C:/s"
+uloz = "C:/prace/skola/studie2/ndvi/"
+
+def reclass_cloud(file,output):
+    from qgis.analysis import QgsRasterCalculator, QgsRasterCalculatorEntry
+
+    clouds_file  = QgsRasterLayer(file, "file")
+    QgsProject.instance().addMapLayer(clouds_file) 
+
+    entries = []
+    # Define band1
+    clouds_layer = QgsRasterCalculatorEntry()
+    clouds_layer.ref = 'file@1'
+    clouds_layer.raster = clouds_file
+    clouds_layer.bandNumber = 1
+    entries.append( clouds_layer )
+    # Process calculation with input extent and resolution
+    calc = QgsRasterCalculator( '(1*(file@1<20))', output, 'GTiff', clouds_file.extent(), clouds_file.width(), clouds_file.height(), entries )
+    calc.processCalculation()
+    QgsProject.instance().removeMapLayer(clouds_file)
+    
+
+def kalkuluj (b4,b8a,clouds,uloz):
+    #shutil.copy(clouds, uloz_mrak)
+    print(b4)
+    print(b8a)
+    print(clouds)
+    print(uloz)
+    from qgis.analysis import QgsRasterCalculator, QgsRasterCalculatorEntry
+
+    # Add raster 
+    b4_layer  = QgsRasterLayer(b4, "b4")
+    b8_layer  = QgsRasterLayer(b8a, "b8")
+    clouds_layer  = QgsRasterLayer(clouds, "cl")
+    
+    #if not bohLayer.isValid():
+    #    print("Layer failed to load!")
+
+    # Load raster layer into canvas (not required for script but hey it looks awesome) 
+    QgsProject.instance().addMapLayer(b4_layer) 
+    QgsProject.instance().addMapLayer(b8_layer) 
+    QgsProject.instance().addMapLayer(clouds_layer) 
+
+    entries = []
+    # Define band1
+    b4_l = QgsRasterCalculatorEntry()
+    b4_l.ref = 'b4_l@1'
+    b4_l.raster = b4_layer
+    b4_l.bandNumber = 1
+    entries.append( b4_l )
+    
+    b8_l = QgsRasterCalculatorEntry()
+    b8_l.ref = 'b8_l@1'
+    b8_l.raster = b8_layer
+    b8_l.bandNumber = 1
+    entries.append( b8_l )
+    
+    cl_l = QgsRasterCalculatorEntry()
+    cl_l.ref = 'cl_l@1'
+    cl_l.raster = clouds_layer
+    cl_l.bandNumber = 1
+    entries.append( cl_l )
+    print("a")
+
+    # repeat step above if multiple bands
+
+    print("ahoj")
+    # Process calculation with input extent and resolution
+    calc = QgsRasterCalculator( '((b8_l@1 - b4_l@1) / (b8_l@1 + b4_l@1) * cl_l@1)', uloz, 'GTiff', b4_layer.extent(), b4_layer.width(), b4_layer.height(), entries )
+    calc.processCalculation()
+
+    print ("finish")
+    QgsProject.instance().removeMapLayer(b4_layer) 
+    QgsProject.instance().removeMapLayer(b8_layer) 
+    QgsProject.instance().removeMapLayer(clouds_layer) 
+    
+jednou = 0    
+for x in os.listdir(adresar):
+    for xx in os.listdir (adresar + "/" + x):
+        
+        for xxx in os.listdir (adresar + "/" + x + "/" + xx + "/GRANULE"):
+            mam_b4 = 0
+            mam_b8 = 0
+            for xxxx in os.listdir (adresar + "/" + x + "/" + xx + "/GRANULE/" + xxx + "/IMG_DATA/R20m"):
+                if xxxx.endswith("B04_20m.jp2"):
+                    b4 = adresar + "/" + x + "/" + xx + "/GRANULE/" + xxx + "/IMG_DATA/R20m/" + xxxx
+                    mam_b4=1
+                if xxxx.endswith("B8A_20m.jp2"):
+                    b8a = adresar + "/" + x + "/" + xx + "/GRANULE/" + xxx + "/IMG_DATA/R20m/" + xxxx
+                    mam_b8=1
+                        
+            if mam_b8 == 1 and mam_b4 == 1:
+                clouds = adresar + "/" + x + "/" + xx + "/GRANULE/" + xxx + "/QI_DATA/MSK_CLDPRB_20m.jp2"
+                if jednou == 0:
+                    #jednou = 1
+                    reclass_cloud(clouds,uloz+x+"/"+xxx+"_CLD.tif")
+                    kalkuluj(b4,b8a,uloz+x+"/"+xxx+"_CLD.tif",uloz+x+"/"+xxx+".tif")
+
+
