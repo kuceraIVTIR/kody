@@ -1,0 +1,124 @@
+import os
+import processing
+from qgis.PyQt import QtGui
+import time
+import shutil
+
+
+uloz = "C:/prace/skola/studie2/ndvi/"
+
+def reclass_cloud(file,output):
+    from qgis.analysis import QgsRasterCalculator, QgsRasterCalculatorEntry
+
+    clouds_file  = QgsRasterLayer(file, "file")
+    QgsProject.instance().addMapLayer(clouds_file) 
+
+    entries = []
+    # Define band1
+    clouds_layer = QgsRasterCalculatorEntry()
+    clouds_layer.ref = 'file@1'
+    clouds_layer.raster = clouds_file
+    clouds_layer.bandNumber = 1
+    entries.append( clouds_layer )
+    # Process calculation with input extent and resolution
+    calc = QgsRasterCalculator( '(1*(file@1<20))', output, 'GTiff', clouds_file.extent(), clouds_file.width(), clouds_file.height(), entries )
+    calc.processCalculation()
+    QgsProject.instance().removeMapLayer(clouds_file)
+    
+
+def kalkuluj (r19, r19_cl, r20, r20_cl,uloz):
+    from qgis.analysis import QgsRasterCalculator, QgsRasterCalculatorEntry
+
+    # Add raster 
+    r19_layer  = QgsRasterLayer(r19, "r19")
+    r19_cl_layer  = QgsRasterLayer(r19_cl, "r19cl")
+    r20_layer  = QgsRasterLayer(r20, "r20")
+    r20_cl_layer  = QgsRasterLayer(r20_cl, "r20cl")
+
+    
+    #if not bohLayer.isValid():
+    #    print("Layer failed to load!")
+
+    # Load raster layer into canvas (not required for script but hey it looks awesome) 
+    QgsProject.instance().addMapLayer(r19_layer) 
+    QgsProject.instance().addMapLayer(r19_cl_layer) 
+    QgsProject.instance().addMapLayer(r20_layer) 
+    QgsProject.instance().addMapLayer(r20_cl_layer) 
+
+    entries = []
+    # Define band1
+    r19_l = QgsRasterCalculatorEntry()
+    r19_l.ref = 'r19_l@1'
+    r19_l.raster = r19_layer
+    r19_l.bandNumber = 1
+    entries.append( r19_l )
+    
+    r20_l = QgsRasterCalculatorEntry()
+    r20_l.ref = 'r20_l@1'
+    r20_l.raster = r20_layer
+    r20_l.bandNumber = 1
+    entries.append( r20_l )
+    
+    r19cl_l = QgsRasterCalculatorEntry()
+    r19cl_l.ref = 'r19cl_l@1'
+    r19cl_l.raster = r19_cl_layer
+    r19cl_l.bandNumber = 1
+    entries.append( r19cl_l )
+    
+    r20cl_l = QgsRasterCalculatorEntry()
+    r20cl_l.ref = 'r20cl_l@1'
+    r20cl_l.raster = r20_cl_layer
+    r20cl_l.bandNumber = 1
+    entries.append( r20cl_l )
+
+    # repeat step above if multiple bands
+
+
+    # Process calculation with input extent and resolution
+    calc = QgsRasterCalculator( '((r20_l@1 - r19_l@1) * r20cl_l@1 * r19cl_l@1)', uloz, 'GTiff', r19_layer.extent(), r19_layer.width(), r19_layer.height(), entries )
+    calc.processCalculation()
+
+    print ("finish")
+    QgsProject.instance().removeMapLayer(r19_layer) 
+    QgsProject.instance().removeMapLayer(r19_cl_layer) 
+    QgsProject.instance().removeMapLayer(r20_layer) 
+    QgsProject.instance().removeMapLayer(r20_cl_layer) 
+    
+    
+hotove_dlazdice=[]
+soubory = []
+dlazdice = []
+
+
+for x in os.listdir(uloz):
+    if os.path.isdir(uloz+"/"+x):
+        for xx in os.listdir (uloz + "/" + x):
+            if not xx[4:10] in dlazdice:
+               dlazdice.append(xx[4:10]) 
+            soubory.append(uloz + "/" + x + "/" + xx)
+
+for vybrana_dlazdice in dlazdice:
+    r19 = ""
+    r20 = ""
+    r19_cl = ""
+    r20_cl = ""
+    for soubor in soubory:
+        if vybrana_dlazdice in soubor:
+            if "2019" in soubor:
+                if soubor.endswith("_CLD.tif"):
+                    r19_cl = soubor
+                else:
+                    r19 = soubor
+            if "2020" in soubor:
+                if soubor.endswith("_CLD.tif"):
+                    r20_cl = soubor
+                else:
+                    r20 = soubor
+    print(r19_cl)
+    print(r19)
+    print(r20_cl)
+    print(r20)
+
+    kalkuluj (r19, r19_cl, r20, r20_cl,"C:/s/"+vybrana_dlazdice+".tif")
+
+    
